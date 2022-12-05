@@ -1,0 +1,115 @@
+#================ Settings 
+variable        t equal 10 #temperature
+variable 	codi equal 0.9 #compression displacement
+variable        nsteps equal 45  #number of steps of compression
+variable	wallt equal 10 #wall thickness
+
+#================ Initialize 
+units           nano
+dimension       2
+boundary        s s p
+
+atom_style      angle
+bond_style      harmonic
+angle_style     harmonic
+pair_style      lj/cut 2.5
+pair_modify 	shift yes
+comm_modify     cutoff 3
+read_data       FILENAME
+
+timestep        0.0001
+velocity        all create ${t} 1234567 rot yes dist gaussian
+
+#================ Grip Regions 
+variable 	yh equal bound(all,ymax)
+variable 	yl equal bound(all,ymin)
+
+variable 	height equal "v_yh-v_yl"
+variable        dly equal ${codi}*${height}
+variable        dy equal ${dly}/${nsteps}
+
+variable 	wallh equal "v_yh-v_wallt"
+variable 	walll equal "v_yl+v_wallt"
+region          gtop block INF INF ${wallh} INF INF INF units box
+group           gtop region gtop
+region          gbot block INF INF INF ${walll} INF INF units box
+group           gbot region gbot
+
+#================= Calculate stress 
+compute         pb all pressure NULL bond
+compute         pa all pressure NULL angle
+compute         pp all pressure NULL pair
+variable        pb equal c_pb[2]
+variable        pa equal c_pa[2]
+variable        pp equal c_pp[2]
+variable        ptot equal v_pb+v_pa+v_pp
+
+#================ Calculate Energy 
+variable        ebond equal ebond
+variable        eangle equal eangle
+variable        epair equal epair
+variable        pe equal pe
+variable        lx equal lx
+variable        ly equal ly
+
+#================ Calculate per-atom stress/Energy
+compute         sa all stress/atom NULL
+compute         peba all pe/atom bond
+compute         peaa all pe/atom angle
+compute         pepa all pe/atom pair
+compute         pea all pe/atom
+
+#================ Monitor
+thermo          100
+thermo_style    custom step temp pe v_pb v_pa v_pp v_ptot ebond eangle epair v_pe v_lx v_ly
+
+#================ Walls
+variable        ytopwall equal ${yh}+0.86
+variable        ybotwall equal ${yl}-0.86
+fix             wtop gtop wall/lj93 yhi v_ytopwall 1.0 1.0 0.858 units box
+fix             wbot gbot wall/lj93 ylo v_ybotwall 1.0 1.0 0.858 units box
+
+variable        ftop equal f_wtop[1]
+variable        fbot equal -f_wbot[1]
+variable        rf equal (f_wtop[1]-f_wbot[1])/2
+variable        rstress equal v_rf/${lx}
+
+#================= Equilibration
+fix             1 all nve/limit 0.1
+fix             2 all temp/rescale 100 ${t} ${t} 1 1.0
+print 		"temperature ${t}"
+minimize        0 1e-8  5000 100000
+
+#****************************   compression   **********************************
+
+#========================  Output
+print       "step dy strain stressb stressa stressp stresstot ebond eangle epair pe lx ly rforce rstress" file ss.dat
+print       "0 0 0 ${pb} ${pa} ${pp} ${ptot} ${ebond} ${eangle} ${epair} ${pe} ${lx} ${ly} ${rf} ${rstress}" append ss.dat
+
+variable    height equal ${ly}
+
+reset_timestep  0
+variable    a loop ${nsteps}
+label       comp
+    #================== Compress in y
+    change_box      all y delta 0 -${dy} remap units box
+    variable        tmp equal ${ytopwall}
+    variable        ytopwall equal ${tmp}-${dy}
+    run             100
+
+    #================== Energy Minimization
+    min_style       cg
+    minimize        0 1e-8  10000 100000
+
+    #================== Output after Minimization
+    variable        deltay equal ${a}*${dy}
+    variable        strain equal 1-${ly}/${height} #${deltay}/${height}
+    print   "$a ${deltay} ${strain} ${pb} ${pa} ${pp} ${ptot} ${ebond} ${eangle} ${epair} ${pe} ${lx} ${ly} ${rf} ${rstress}" append ss.dat
+
+    #================== Trajectory after Minimization
+    dump            step all custom 1 dump.DIRstep${a} id type xu yu zu c_sa[1] c_sa[2] c_sa[4] c_pea 
+    dump_modify     step sort id
+    run             0
+    undump          step
+    next            a
+jump        in.DIRcomp comp
