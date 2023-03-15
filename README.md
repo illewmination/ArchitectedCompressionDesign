@@ -1,7 +1,7 @@
 # ArchitectedCompressionDesign
 Code for "Architected Materials for Mechanical Compression: Design via Simulation, Deep Learning, and Experimentation"
 
-A. Lew, K. Jin, M.J. Buehler, Architected Materials for Mechanical Compression: Design via Simulation, Deep Learning, and Experimentation, npj Computational Materials, 2023 
+Reference: A. Lew, K. Jin, M.J. Buehler, Architected Materials for Mechanical Compression: Design via Simulation, Deep Learning, and Experimentation, npj Computational Materials, 2023 
 
 1.) Setup environment with: conda env create -f environment.yml
 
