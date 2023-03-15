@@ -1,6 +1,8 @@
 # ArchitectedCompressionDesign
 Code for "Architected Materials for Mechanical Compression: Design via Simulation, Deep Learning, and Experimentation"
 
+A. Lew, K. Jin, M.J. Buehler, Architected Materials for Mechanical Compression: Design via Simulation, Deep Learning, and Experimentation, npj Computational Materials, 2023 
+
 1.) Setup environment with: conda env create -f environment.yml
 
 2.)	Generate initial dataset of architected honeycomb structures with 'ArchitectedCompression_StructureGeneration.ipynb'. Sample structures are provided in the folder 'ArchitectedCompression_MDScripts'.
